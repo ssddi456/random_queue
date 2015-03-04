@@ -1,0 +1,83 @@
+extends layout
+
+mixin post_form(action, text, id)
+  - id = id || ''
+  form.form-inline(method="POST", action="#{action}", target="_SELF")
+    .form-group
+      block
+    input(type="hidden",name="id",value="#{id}")
+    button.btn.btn-default(type="submit")= text
+
+block content
+  .container
+    .row
+      .col-sm-12
+        if queue.running
+          h1 本周值班人员是：#{queue.current_item&&queue.current_item.value}
+          .row
+            .col-sm-8 下次更新值班人员时间点：#{new Date(queue.next_check_point)}
+            .col-sm-4
+              +post_form('/run','暂停')
+        else 
+          .row
+            .col-sm-4
+              | 值班队列暂停中 
+            .col-sm-8
+              +post_form('/run','开始')
+    .row
+      .col-sm-6
+        table.table
+          thead
+            tr
+              td 
+                | 值班状态
+          tbody
+            each item in queue.running_queue
+              tr
+                td
+                  h4
+                    = item.value
+                  dl.dl-horizontal
+                    dt
+                      = '  当前 ：' 
+                    dd
+                      = queue.stat_text(item.duty_stat)
+                      if queue.chosen_next_item && item.id == queue.chosen_next_item.id
+                        | - 下周值班
+                  dl.dl-horizontal
+                    dt
+                      = '  修改值班状态 ：'
+                    dd
+                      if queue.chosen_next_item ? item.id != queue.chosen_next_item.id : true
+                        +post_form('/set_next','指定下周值班',item.id)
+                      if queue.chosen_next_item && item.id == queue.chosen_next_item.id
+                        +post_form('/cancel_next','取消下周值班',item.id)
+                      +post_form('/remove_running_item','删除',item.id)
+                      if item.duty_stat == 'on_duty'
+                        +post_form('/set_stat','完成',item.id)
+                          input(type="hidden",name="stat",value="end")
+                      if item.duty_stat == 'waiting'
+                        +post_form('/set_stat','值班中',item.id)
+                          input(type="hidden",name="stat",value="on_duty")
+          tbody
+            tr
+              td
+                +post_form('/add_base','添加')
+                  input.form-control(type="text",name="val",placeholder="姓名")
+      .col-sm-6
+        table.table
+          thead
+            tr
+              td
+                | 组成员
+          tbody
+            each item in queue.base_queue
+              tr
+                td= item.value
+                td
+                  +post_form('/remove_base_item','删除',item.id)
+          tbody
+            tr
+              td
+                +post_form('/add_base','添加')
+                  input.form-control(type="text",name="val",placeholder="姓名")
