@@ -2,11 +2,20 @@ extends layout
 
 mixin post_form(action, text, id)
   - id = id || ''
-  form.form-inline(method="POST", action="#{action}", target="_SELF")
+  form.form-inline(method="POST", action="#{action}")
     .form-group
       block
     input(type="hidden",name="id",value="#{id}")
     button.btn.btn-default(type="submit")= text
+
+mixin post_form_in_menu(action, text, id)
+  - id = id || ''
+  li
+    form.form-inline(method="POST", action="#{action}")
+      input(type="hidden",name="id",value="#{id}")
+      block
+      button.btn-as-line(type="submit")= text
+
 
 block content
   .container
@@ -15,7 +24,7 @@ block content
         if queue.running
           h1 本周值班人员是：#{queue.current_item&&queue.current_item.value}
           .row
-            .col-sm-8 下次更新值班人员时间点：#{new Date(queue.next_check_point)}
+            .col-sm-8 下次更新值班人员时间点：#{date_format(queue.next_check_point)}
             .col-sm-4
               +post_form('/run','暂停')
         else 
@@ -35,34 +44,36 @@ block content
             each item in queue.running_queue
               tr
                 td
-                  h4
+                  label
                     = item.value
-                  dl.dl-horizontal
-                    dt
-                      = '  当前 ：' 
-                    dd
-                      = queue.stat_text(item.duty_stat)
-                      if queue.chosen_next_item && item.id == queue.chosen_next_item.id
-                        | - 下周值班
-                  dl.dl-horizontal
-                    dt
-                      = '  修改值班状态 ：'
-                    dd
-                      if queue.chosen_next_item ? item.id != queue.chosen_next_item.id : true
-                        +post_form('/set_next','指定下周值班',item.id)
-                      if queue.chosen_next_item && item.id == queue.chosen_next_item.id
-                        +post_form('/cancel_next','取消下周值班',item.id)
-                      +post_form('/remove_running_item','删除',item.id)
-                      if item.duty_stat == 'on_duty'
-                        +post_form('/set_stat','完成',item.id)
-                          input(type="hidden",name="stat",value="end")
-                      if item.duty_stat == 'waiting'
-                        +post_form('/set_stat','值班中',item.id)
-                          input(type="hidden",name="stat",value="on_duty")
+                  span.pull-right
+                    = queue.stat_text(item.duty_stat)
+                    if queue.chosen_next_item && item.id == queue.chosen_next_item.id
+                      | - 下周值班
+                    .inline.dropdown
+                      i.glyphicon.glyphicon-chevron-down.dropdown-toggle(data-toggle="dropdown")
+                      .dropdown-menu(role="menu")
+                        li.dropdown-header
+                          | 改变值班状态
+                        if queue.chosen_next_item ? item.id != queue.chosen_next_item.id : true
+                          +post_form_in_menu('/set_next','指定下周值班',item.id)
+                        if queue.chosen_next_item && item.id == queue.chosen_next_item.id
+                          +post_form_in_menu('/cancel_next','取消下周值班',item.id)
+                        if queue.current_item ? item.id != queue.current_item.id : true
+                          +post_form_in_menu('/remove_running_item','删除',item.id)
+                        else 
+                          li.dropdown-header
+                            | 值班中人员无法直接删除，请指定其他人值班再行删除
+                        if item.duty_stat == 'on_duty'
+                          +post_form_in_menu('/set_stat','完成',item.id)
+                            input(type="hidden",name="stat",value="end")
+                        if item.duty_stat == 'waiting'
+                          +post_form_in_menu('/set_stat','值班中',item.id)
+                            input(type="hidden",name="stat",value="on_duty")
           tbody
             tr
               td
-                +post_form('/add_base','添加')
+                +post_form('/add_base','添加临时成员')
                   input.form-control(type="text",name="val",placeholder="姓名")
       .col-sm-6
         table.table
@@ -79,5 +90,5 @@ block content
           tbody
             tr
               td
-                +post_form('/add_base','添加')
+                +post_form('/add_base','添加组成员')
                   input.form-control(type="text",name="val",placeholder="姓名")

@@ -12,3 +12,32 @@ a {
   *display: inline;
   *zoom: 1;
 }
+li>.form-inline{
+  width: 100%;
+}
+.inline{
+  display: inline-block;
+  *display: inline;
+  *zoom: 1;
+}
+.btn-as-line{
+  width: 100%;
+  background: none;
+  border: none;
+  text-align: left;
+  display: block;
+  padding: 3px 20px;
+  clear: both;
+  font-weight: 400;
+  line-height: 1.42857143;
+  color: #333;
+  white-space: nowrap;
+}
+
+.btn-as-line:focus,
+.btn-as-line:hover
+{
+  color: #262626;
+  text-decoration: none;
+  background-color: #f5f5f5;
+}

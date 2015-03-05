@@ -11,7 +11,16 @@ function save_then_go_index( req, res ) {
 }
 router
   .get('/', function(req, res, next) {
-    res.render('index', {queue : store.queue});
+    res.render('index', {
+      queue       : store.queue,
+      date_format : function( ms ) {
+        console.log( ms );
+        var d = new Date(ms);
+        return (d.getMonth()+1) + '月' 
+              + d.getDate() + '日' 
+              + d.getHours() + '时';
+      }
+    });
   })
   .post('/run',function( req, res, next ) {
     if( !store.queue.running ){

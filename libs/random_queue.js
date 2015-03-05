@@ -57,7 +57,10 @@ function random_queue () {
 }
 
 function random_item ( arr ) {
-  return arr[ Math.floor(Math.random()* arr.length)];
+  var len = arr.length;
+  var idx = Math.floor(Math.random() * arr.length);
+  debug('random ', 'len : ', len, 'idx : ', idx );
+  return arr[ idx ];
 }
 
 util._extend(random_queue.prototype,{
@@ -98,55 +101,56 @@ util._extend(random_queue.prototype,{
   },
   end_duty : function() {
     if( !this.current_item ){
+      debug('no current_item, can not end_duty');
       return;
     }
     var c_item = this.current_item;
     c_item.duty_stat = 'end';
     var last_duty = this.duty_peers.slice(-1)[0];
+    debug( c_item );
     last_duty.end = Date.now();
+    this.current_item = undefined;
     if( last_duty.value != c_item.value ){
       debug(
         'end_duty', 
         last_duty.value, c_item.value,
         'mismatch' );
     }
-
   },
-  loop : function() {
-    var self = this;
-    function looper () {
-      if( Date.now() < this.get_check_point() ){
+  loop : function (){
+    if( Date.now() < this.get_check_point() ){
 
-      } else {
-        self.end_duty();
-      }
-
-      if( self.is_end() ){
-        self.build_runnging_queue();
-      }
-
-      var next_item;
-      if( self.chosen_next_item ){
-
-        next_item = self.chosen_next_item;
-        self.chosen_next_item = undefined;
-
-      } else {
-        next_item = random_item( 
-                      self.running_queue
-                        .filter(function( item ) {
-                          return item.duty_stat == 'waiting';
-                        }));
-      }
-
-      self.start_duty(next_item);
-      var delta = self.get_check_point() - Date.now();
-      self.timer = setTimeout( looper, delta );
+    } else {
+      this.end_duty();
     }
-    looper();
-    this.end = function() {
+
+    if( this.is_end() ){
+      this.build_runnging_queue();
+    }
+
+    var next_item;
+    if( this.chosen_next_item ){
+
+      next_item = this.chosen_next_item;
+      this.chosen_next_item = undefined;
+
+    } else {
+      next_item = random_item( 
+                    this.running_queue
+                      .filter(function( item ) {
+                        return item.duty_stat == 'waiting';
+                      }));
+    }
+
+    this.start_duty(next_item);
+    var delta = this.get_check_point() - Date.now();
+    debug( 'will update on delta : ', delta / 36e5, ' hour' );
+    this.timer = setTimeout( this.loop.bind(this), delta );
+  },
+  end : function() {
+    if( this.running ){
       clearTimeout( this.timer );
-      this.end = function() {};
+      this.end_duty();
       this.running = false;
     }
   },
@@ -173,6 +177,16 @@ util._extend(random_queue.prototype,{
     }
 
     return (this.next_check_point = next_check_point);
+  },
+  get_item_from_base_queue_with_id : function(id) {
+    return _.find( this.base_queue, function( item ) {
+      return item.id == id
+    })  
+  },
+  get_item_from_running_queue_with_id : function(id) {
+    return _.find( this.running_queue, function( item ) {
+      return item.id == id
+    })  
   },
   add_to_queue: function( val ) {
     var item = new random_queue_item(val);
@@ -208,25 +222,23 @@ util._extend(random_queue.prototype,{
               });
     if( item ){
       if( item.duty_stat == 'on_duty' && stat == 'end' ){
-        this.end_duty();
+        debug('change_item_state', 'end duty');
         if( this.running ){
           this.end();
+          debug( this );
+          this.run();
         }
       }
       if( item.duty_stat == 'waiting' && stat == 'on_duty' ){
-        if( this.running ){
-          var t = this.chosen_next_item;
-          this.chosen_next_item = item;
-          this.end();
-          this.run();
-          if( t.id != item.id ){
-            this.chosen_next_item = t;
-          }
-        } else {
-          if( this.current_item ){
-            this.end_duty();
-            this.start_duty(item);
-          }
+        var t = this.chosen_next_item;
+        if( this.current_item ){
+          this.end_duty();
+          this.start_duty(item);
+        }
+        if( t && t.id != item.id ){
+          this.chosen_next_item = t;
+        } else{
+          this.chosen_next_item = undefined;
         }
       }
       return item;
@@ -260,6 +272,7 @@ util._extend(random_queue.prototype,{
   },
   toJSON : function() {
     return{
+      running          : this.running,
       base_queue       : this.base_queue,
       running_queue    : this.running_queue,
       current_item     : this.current_item,
