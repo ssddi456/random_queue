@@ -33,6 +33,8 @@ block content
               | 值班队列暂停中 
             .col-sm-8
               +post_form('/run','开始')
+        if queue.current_item
+          +post_form('/close', '关闭')
     .row
       .col-sm-6
         table.table

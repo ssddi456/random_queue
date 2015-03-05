@@ -37,6 +37,12 @@ router
     }
     next();
   },save_then_go_index)
+  .post('/close',function( req, res, next ) {
+    if( store.queue.running ){
+      store.queue.close();      
+    }
+    next();
+  },save_then_go_index)
   .post('/add_base',function( req, res, next ) {
     store.queue.add_to_base(req.body.val);
     next();

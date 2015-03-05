@@ -53,6 +53,7 @@ function random_queue () {
   this.chosen_next_item = undefined;
 
   this.running = false;
+  this.after_loop = function(){};
   this.duty_peers = [];
 }
 
@@ -92,6 +93,11 @@ util._extend(random_queue.prototype,{
     });
   },
   start_duty : function( item ) {
+    if( this.current_item 
+      && this.current_item.id != this.current_item.id
+    ){
+      this.end_duty();
+    }
     this.current_item = item;
     item.duty_stat = 'on_duty';
     var new_duty = new duty();
@@ -100,11 +106,13 @@ util._extend(random_queue.prototype,{
     this.duty_peers.push( new_duty );
   },
   end_duty : function() {
+    debug('end_duty');
     if( !this.current_item ){
       debug('no current_item, can not end_duty');
       return;
     }
     var c_item = this.current_item;
+    debug( this.current_item == this.get_item_from_running_queue_with_id(this.current_item.id));
     c_item.duty_stat = 'end';
     var last_duty = this.duty_peers.slice(-1)[0];
     debug( c_item );
@@ -119,32 +127,41 @@ util._extend(random_queue.prototype,{
   },
   loop : function (){
     if( Date.now() < this.get_check_point() ){
-
+      debug(' current duty havnt end');
     } else {
+      debug('end current duty');
       this.end_duty();
     }
 
-    if( this.is_end() ){
-      this.build_runnging_queue();
-    }
-
     var next_item;
-    if( this.chosen_next_item ){
+    if( this.current_item ){
+
+    } else if ( this.chosen_next_item ){
 
       next_item = this.chosen_next_item;
       this.chosen_next_item = undefined;
 
     } else {
-      next_item = random_item( 
-                    this.running_queue
-                      .filter(function( item ) {
-                        return item.duty_stat == 'waiting';
-                      }));
+      var waiting_items = this.running_queue
+                            .filter(function( item ) {
+                              return item.duty_stat == 'waiting';
+                            });
+      if( !waiting_items.length ){
+        debug('no waiting_items !!!', this.running_queue );
+        this.build_runnging_queue();
+        next_item = random_item( this.running_queue );
+      } else {
+        next_item = random_item( waiting_items );
+      }
     }
 
-    this.start_duty(next_item);
+    if( next_item ){
+      debug('new duty session');
+      this.start_duty(next_item);
+    }
     var delta = this.get_check_point() - Date.now();
     debug( 'will update on delta : ', delta / 36e5, ' hour' );
+    this.after_loop && this.after_loop();
     this.timer = setTimeout( this.loop.bind(this), delta );
   },
   end : function() {
@@ -153,6 +170,13 @@ util._extend(random_queue.prototype,{
       this.end_duty();
       this.running = false;
     }
+  },
+  close: function() {
+    this.end();
+    this.running_queue.length = 0;
+    this.current_item =
+    this.chosen_next_item = 
+    this.next_check_point = undefined;
   },
   get_check_point :function() {
 
@@ -217,17 +241,18 @@ util._extend(random_queue.prototype,{
     }
   },
   change_item_state : function( id, stat ) {
-    var item= _.find(this.running_queue,function( item, _idx ) {
-                return item.id == id;
-              });
+    var item= this.get_item_from_running_queue_with_id(id);
     if( item ){
       if( item.duty_stat == 'on_duty' && stat == 'end' ){
+        debug('is current_item', 1,item == this.current_item );
         debug('change_item_state', 'end duty');
+        var running = this.running;
         if( this.running ){
           this.end();
-          debug( this );
           this.run();
         }
+        debug('pre item stat', item.duty_stat);
+        debug('is current_item', 2,item == this.current_item);
       }
       if( item.duty_stat == 'waiting' && stat == 'on_duty' ){
         var t = this.chosen_next_item;
@@ -245,10 +270,7 @@ util._extend(random_queue.prototype,{
     }
   },
   choose_next: function( id ) {
-    var chosen_next_item = _.find(this.running_queue,
-                              function( item ) {
-                                return item.id == id;
-                              });
+    var chosen_next_item = this.get_item_from_running_queue_with_id(id);
     if( !chosen_next_item ){
       throw new Error( 'item not found with id : '+id);
     }
@@ -275,9 +297,9 @@ util._extend(random_queue.prototype,{
       running          : this.running,
       base_queue       : this.base_queue,
       running_queue    : this.running_queue,
-      current_item     : this.current_item,
+      current_item     : this.current_item && this.current_item.id,
       next_check_point : this.next_check_point,
-      chosen_next_item : this.chosen_next_item,
+      chosen_next_item : this.chosen_next_item && this.chosen_next_item.id,
       duty_peers       : this.duty_peers
     }
   }

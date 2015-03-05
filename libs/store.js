@@ -16,9 +16,10 @@ module.exports = {
     queue.running = store.running;
     queue.running_queue = store.running_queue;
     
-    queue.current_item = queue.get_item_from_running_queue_with_id(store.current_item.id);
+    queue.current_item = store.current_item 
+      && queue.get_item_from_running_queue_with_id(store.current_item);
     queue.chosen_next_item = store.chosen_next_item 
-      && queue.get_item_from_running_queue_with_id(store.chosen_next_item.id);
+      && queue.get_item_from_running_queue_with_id(store.chosen_next_item);
 
     queue.next_check_point = store.next_check_point;
     queue.duty_peers = store.duty_peers;
@@ -34,6 +35,7 @@ module.exports = {
       debug('load error', e );
       return;
     }
+    running_queue.after_loop = this.save.bind(this,running_queue);
     if(running_queue.running){
       running_queue.loop();
     }
