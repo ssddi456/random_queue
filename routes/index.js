@@ -25,6 +25,9 @@ router
   .get('/full_data',function( req, res) {
     res.json(store.get_data());
   })
+  .get('/get_on_duty',function( req, res) {
+    res.json({ item : store.queue.current_item });
+  })
   .post('/run',function( req, res, next ) {
     if( !store.queue.running ){
       store.queue.run();      
