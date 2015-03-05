@@ -22,6 +22,9 @@ router
       }
     });
   })
+  .get('/full_data',function( req, res) {
+    res.json(store.get_data());
+  })
   .post('/run',function( req, res, next ) {
     if( !store.queue.running ){
       store.queue.run();      

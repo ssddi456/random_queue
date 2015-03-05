@@ -37,5 +37,8 @@ module.exports = {
     if(running_queue.running){
       running_queue.loop();
     }
+  },
+  get_data : function() {
+    return JSON.parse(fs.readFileSync(store_file));
   }
 };
